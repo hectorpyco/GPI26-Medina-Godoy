@@ -132,9 +132,14 @@ def calcular_tasas_graduacion_cohorte(carrera_id=None):
     for carrera in carreras:
         cohortes = CohorteIngresantes.objects.filter(carrera=carrera).order_by('anio_cohorte')
         datos_cohortes = []
-        tasas_list = []
-        tasas_m_list = []
-        tasas_f_list = []
+        totales_cohortes_con_egresados = {
+            'ingresantes': 0,
+            'egresados': 0,
+            'ingresantes_m': 0,
+            'egresados_m': 0,
+            'ingresantes_f': 0,
+            'egresados_f': 0,
+        }
 
         for ch in cohortes:
             # Egresados de esta carrera que ingresaron en este año (total y por sexo)
@@ -150,26 +155,18 @@ def calcular_tasas_graduacion_cohorte(carrera_id=None):
             ingresantes_m = ch.cantidad_masculino
             ingresantes_f = ch.cantidad_femenino
 
-            # Tasa general
-            if ingresantes > 0 and egresados_cohorte > 0:
-                tasa = round((egresados_cohorte / ingresantes) * 100, 2)
-                tasas_list.append(tasa)
-            else:
-                tasa = 0.0
+            # Promedios históricos ponderados: solo cuentan cohortes con egresados.
+            if egresados_cohorte > 0:
+                totales_cohortes_con_egresados['ingresantes'] += ingresantes
+                totales_cohortes_con_egresados['egresados'] += egresados_cohorte
+                totales_cohortes_con_egresados['ingresantes_m'] += ingresantes_m
+                totales_cohortes_con_egresados['egresados_m'] += egresados_m
+                totales_cohortes_con_egresados['ingresantes_f'] += ingresantes_f
+                totales_cohortes_con_egresados['egresados_f'] += egresados_f
 
-            # Tasa masculina
-            if ingresantes_m > 0 and egresados_m > 0:
-                tasa_m = round((egresados_m / ingresantes_m) * 100, 2)
-                tasas_m_list.append(tasa_m)
-            else:
-                tasa_m = 0.0
-
-            # Tasa femenina
-            if ingresantes_f > 0 and egresados_f > 0:
-                tasa_f = round((egresados_f / ingresantes_f) * 100, 2)
-                tasas_f_list.append(tasa_f)
-            else:
-                tasa_f = 0.0
+            tasa = round((egresados_cohorte / ingresantes) * 100, 2) if ingresantes > 0 and egresados_cohorte > 0 else 0.0
+            tasa_m = round((egresados_m / ingresantes_m) * 100, 2) if ingresantes_m > 0 and egresados_cohorte > 0 else 0.0
+            tasa_f = round((egresados_f / ingresantes_f) * 100, 2) if ingresantes_f > 0 and egresados_cohorte > 0 else 0.0
 
             datos_cohortes.append({
                 'id': ch.id,
@@ -185,9 +182,10 @@ def calcular_tasas_graduacion_cohorte(carrera_id=None):
                 'tasa_f': tasa_f,
             })
 
-        tasa_promedio_historica = round(sum(tasas_list) / len(tasas_list), 2) if tasas_list else 0.0
-        tasa_promedio_historica_m = round(sum(tasas_m_list) / len(tasas_m_list), 2) if tasas_m_list else 0.0
-        tasa_promedio_historica_f = round(sum(tasas_f_list) / len(tasas_f_list), 2) if tasas_f_list else 0.0
+        totales = totales_cohortes_con_egresados
+        tasa_promedio_historica = round(totales['egresados'] / totales['ingresantes'] * 100, 2) if totales['ingresantes'] else 0.0
+        tasa_promedio_historica_m = round(totales['egresados_m'] / totales['ingresantes_m'] * 100, 2) if totales['ingresantes_m'] else 0.0
+        tasa_promedio_historica_f = round(totales['egresados_f'] / totales['ingresantes_f'] * 100, 2) if totales['ingresantes_f'] else 0.0
 
         resultados_carreras.append({
             'carrera': carrera,
@@ -195,6 +193,7 @@ def calcular_tasas_graduacion_cohorte(carrera_id=None):
             'tasa_promedio_historica': tasa_promedio_historica,
             'tasa_promedio_historica_m': tasa_promedio_historica_m,
             'tasa_promedio_historica_f': tasa_promedio_historica_f,
+            'totales_cohortes_con_egresados': totales_cohortes_con_egresados,
         })
 
     return resultados_carreras

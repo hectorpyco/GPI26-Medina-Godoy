@@ -78,17 +78,15 @@ def tasas_cohorte_vista(request):
     carreras = Carrera.objects.all()
     tasas = calcular_tasas_graduacion_cohorte(carrera_id=int(carrera_id) if carrera_id else None)
 
-    # Calcular la tasa promedio histórica general (media simple de las tasas por carrera)
+    # Calcular tasas institucionales ponderadas sobre todas las cohortes con egresados.
     if tasas:
-        total_general = round(
-            sum(item['tasa_promedio_historica'] for item in tasas) / len(tasas), 2
-        )
-        total_general_m = round(
-            sum(item['tasa_promedio_historica_m'] for item in tasas) / len(tasas), 2
-        )
-        total_general_f = round(
-            sum(item['tasa_promedio_historica_f'] for item in tasas) / len(tasas), 2
-        )
+        totales = {
+            clave: sum(item['totales_cohortes_con_egresados'][clave] for item in tasas)
+            for clave in ('ingresantes', 'egresados', 'ingresantes_m', 'egresados_m', 'ingresantes_f', 'egresados_f')
+        }
+        total_general = round(totales['egresados'] / totales['ingresantes'] * 100, 2) if totales['ingresantes'] else 0.0
+        total_general_m = round(totales['egresados_m'] / totales['ingresantes_m'] * 100, 2) if totales['ingresantes_m'] else 0.0
+        total_general_f = round(totales['egresados_f'] / totales['ingresantes_f'] * 100, 2) if totales['ingresantes_f'] else 0.0
     else:
         total_general = 0.0
         total_general_m = 0.0
